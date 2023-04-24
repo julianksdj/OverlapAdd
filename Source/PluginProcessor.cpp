@@ -159,25 +159,29 @@ void FftPassthroughAudioProcessor::processBlock (juce::AudioBuffer<float>& buffe
     for (int i=0; i<currentBufferSize; i++) {
         
         // store juce input signal into input buffer
-        inBuffer[inWritePointer] = channelData[i];
-        inWritePointer++;
+        inBuffer[inWritePointer++] = channelData[i];
         if (inWritePointer >= CBUFFER_SIZE) {
             inWritePointer = 0;
         }
-        hopCounter++;
-        
-        // do spectral processing
-        if (hopCounter >= HOP_SIZE) {
-            hopCounter = 0;
-            processFft();
-        }
         
         // read outBuffer (processed signal) and write to juce buffer
-        channelData[i] = outBuffer[outReadPointer];
+        float out = outBuffer[outReadPointer];
+        outBuffer[outReadPointer] = 0.0;
+        out *= (float) HOP_SIZE / (float) FFT_SIZE;
         outReadPointer++;
         if (outReadPointer >= CBUFFER_SIZE) {
             outReadPointer = 0;
         }
+        
+        hopCounter++;
+        // do spectral processing
+        if (hopCounter >= HOP_SIZE) {
+            hopCounter = 0;
+            processFft();
+            outWritePointer = (outWritePointer + HOP_SIZE) % CBUFFER_SIZE;
+        }
+        
+        channelData[i] = out;
 
     }
     
@@ -243,34 +247,6 @@ void FftPassthroughAudioProcessor::processFft() {
     
 }
 
-void FftPassthroughAudioProcessor::processOverlapAdd() {
-    
-    // unwrap input circular buffer
-    for (int i=0; i<FFT_SIZE; i++) {
-        inFft[i] = inBuffer[inReadPointer];
-        inReadPointer++;
-        if (inReadPointer >= CBUFFER_SIZE) {
-            inReadPointer = 0;
-        }
-    }
-    
-    computeFft(FFT_SIZE, inFft, outFft);
-    // spectral processing start ------------------------
-    
-    // spectral processing end --------------------------
-    computeIfft(FFT_SIZE, outFft, outIfft);
-    
-    // store outIfft into outBuffer
-    for (int i=0; i<FFT_SIZE; i++) {
-        outBuffer[outWritePointer] = (outIfft[i] / FFT_SIZE);
-        outWritePointer++;
-        if (outWritePointer >= CBUFFER_SIZE) {
-            outWritePointer = 0;
-        }
-    }
-    
-}
-
 
 void FftPassthroughAudioProcessor::computeFft(int bufferSize, float* input, std::complex<float>* output) {
     double* in;
@@ -283,8 +259,6 @@ void FftPassthroughAudioProcessor::computeFft(int bufferSize, float* input, std:
     for (int i=0; i<bufferSize; i++) {
         in[i] = (double) input[i];
     }
-    //calculate out size
-    //int n_out = ((bufferSize/2)+1);
     // allocate mem for out
     out = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * bufferSize);
     
@@ -310,8 +284,6 @@ void FftPassthroughAudioProcessor::computeIfft(int bufferSize, std::complex<floa
     fftw_complex* in;
     fftw_plan p;
     
-    //calculate in size
-    //int n_in = ((bufferSize/2)+1);
     // allocate mem for in
     in = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * bufferSize);
     // copy input to in

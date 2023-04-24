@@ -68,7 +68,6 @@ public:
     void computeIfft(int bufferSize, std::complex<float>* input, float* output);
     
     void processFft();
-    void processOverlapAdd();
     
 private:
     
