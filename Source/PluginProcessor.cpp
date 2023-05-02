@@ -97,8 +97,7 @@ void FftPassthroughAudioProcessor::prepareToPlay (double sampleRate, int samples
     currentBufferSize = (float) samplesPerBlock;
     currentSampleRate = sampleRate;
     
-    inWritePointer = FFT_SIZE;
-    inReadPointer = 0;
+    inWritePointer = 0;
     hopCounter = 0;
     inBuffer = new float[CBUFFER_SIZE];
     for (int i=0; i<CBUFFER_SIZE; i++) {
@@ -155,11 +154,13 @@ void FftPassthroughAudioProcessor::processBlock (juce::AudioBuffer<float>& buffe
     //auto totalNumInputChannels  = getTotalNumInputChannels();
     //auto totalNumOutputChannels = getTotalNumOutputChannels();
 
-    auto* channelData = buffer.getWritePointer (0);
+    auto* channelDataLeft = buffer.getWritePointer(0);
+    auto* channelDataRight = buffer.getWritePointer(1);
+
     for (int i=0; i<currentBufferSize; i++) {
         
         // store juce input signal into input buffer
-        inBuffer[inWritePointer++] = channelData[i];
+        inBuffer[inWritePointer++] = channelDataLeft[i];
         if (inWritePointer >= CBUFFER_SIZE) {
             inWritePointer = 0;
         }
@@ -167,7 +168,7 @@ void FftPassthroughAudioProcessor::processBlock (juce::AudioBuffer<float>& buffe
         // read outBuffer (processed signal) and write to juce buffer
         float out = outBuffer[outReadPointer];
         outBuffer[outReadPointer] = 0.0;
-        out *= (float) HOP_SIZE / (float) FFT_SIZE;
+        out *= (float) HOP_SIZE / (float) FFT_SIZE; // out * 0.0625
         outReadPointer++;
         if (outReadPointer >= CBUFFER_SIZE) {
             outReadPointer = 0;
@@ -181,9 +182,10 @@ void FftPassthroughAudioProcessor::processBlock (juce::AudioBuffer<float>& buffe
             outWritePointer = (outWritePointer + HOP_SIZE) % CBUFFER_SIZE;
         }
         
-        channelData[i] = out;
-
+        channelDataLeft[i] = out;
+        channelDataRight[i] = out;
     }
+
     
 }
 
@@ -223,11 +225,8 @@ void FftPassthroughAudioProcessor::processFft() {
     
     // unwrap input circular buffer
     for (int i=0; i<FFT_SIZE; i++) {
-        inFft[i] = inBuffer[inReadPointer];
-        inReadPointer++;
-        if (inReadPointer >= CBUFFER_SIZE) {
-            inReadPointer = 0;
-        }
+        int readIdx = (inWritePointer + i - FFT_SIZE + CBUFFER_SIZE) % CBUFFER_SIZE;
+        inFft[i] = inBuffer[readIdx];
     }
     
     computeFft(FFT_SIZE, inFft, outFft);
@@ -238,11 +237,8 @@ void FftPassthroughAudioProcessor::processFft() {
     
     // store outIfft into outBuffer
     for (int i=0; i<FFT_SIZE; i++) {
-        outBuffer[outWritePointer] = (outIfft[i] / FFT_SIZE);
-        outWritePointer++;
-        if (outWritePointer >= CBUFFER_SIZE) {
-            outWritePointer = 0;
-        }
+        int writeIdx = (outWritePointer + i) % CBUFFER_SIZE;
+        outBuffer[writeIdx] += (outIfft[i] / FFT_SIZE);
     }
     
 }

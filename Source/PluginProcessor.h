@@ -12,11 +12,11 @@
 #include <complex>
 
 // fft defines
-#define FFT_SIZE 2048
-#define HOP_SIZE 128
+#define FFT_SIZE 1024
+#define HOP_SIZE 256
 
 // circular buffer defines
-#define CBUFFER_SIZE 2048
+#define CBUFFER_SIZE 16384
 
 //==============================================================================
 /**
@@ -77,7 +77,6 @@ private:
     // circular input buffer
     float* inBuffer;
     int inWritePointer;
-    int inReadPointer;
     int hopCounter;
     
     // circular output buffer
