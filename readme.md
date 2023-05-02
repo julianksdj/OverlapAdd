@@ -1,6 +1,6 @@
 # Overlap-add (FFT passthrough)
  
- This plugin stores samples in an input buffer, when it has enough samples, it performs the FFT of the input, then the IFFT of it and overlap adds the result to an auxiliar output buffer. These samples are copied sample by sample to the output for each audio frame.
+ This plugin stores samples in an input buffer, when it has enough samples, it performs the FFT of FFT_SIZE input samples, then the IFFT of it and overlap-adds the result to a circular output buffer. For each audio frame samples from the circular output buffer are copied to the output circular buffer.
  
  The purpose of this project is to provide a template of a JUCE plugin to perform any operations in the frequency domain.
  Using this project the programmer can quickly embbed any frequency domain processing code inside the `processFFT` function.
